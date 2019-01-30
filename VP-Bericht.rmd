@@ -1,0 +1,77 @@
+---
+title: "Wohnprojekt Wördern"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Darlehensgeber und Fördergemeinschaftsmitglieder
+
+<br/><br/>
+Stand: `r as.Date(Sys.time())`
+<br/><br/><br/>
+
+```{r table, echo=FALSE, warning=FALSE, message=FALSE, results='asis', include=TRUE}
+library(dplyr)
+library(kableExtra)
+library(lubridate)
+library(knitr)
+options(knitr.kable.NA = '')
+
+data <- openxlsx::read.xlsx("./Daten.xlsx", detectDates = TRUE)
+
+vpi <- data.frame(year = 2010:(as.numeric(gdata::getYear(Sys.time()))-1), 
+                  vpi = 0)
+
+# source for inflation data:
+# http://statistik.at/web_de/statistiken/wirtschaft/preise/verbraucherpreisindex_vpi_hvpi/index.html
+vpi$vpi[vpi$year==2017] <- 2.1
+vpi$vpi[vpi$year==2018] <- 2
+vpi$vpi[vpi$year==2019] <- NA
+vpi$vpi[vpi$year==2020] <- NA
+
+for(year in vpi$year){
+  value <- wbstats::wb(country = "AT", indicator = "FP.CPI.TOTL.ZG", startdate = year, enddate = year)$value
+  if(length(value)>0) vpi$vpi[vpi$year==year] <- value
+}
+
+data$Name <- paste(data$Vorname,data$Nachname)
+data <- data[,c("Name","Adresse","Datum","Betrag","Bindung")]
+rownames(data) <- 1:nrow(data)
+data$Bezeichnung <- "Darlehen"
+data$Ablaufdatum <- NA
+class(data$Ablaufdatum) <- "Date"
+data$Ablaufdatum[!is.na(as.numeric(data$Bindung)) & !is.na(data$Datum)] <- 
+  data$Datum[!is.na(as.integer(data$Bindung)) & !is.na(data$Datum)] %m+% 
+  years(as.integer(data$Bindung[!is.na(as.numeric(data$Bindung)) & !is.na(data$Datum)]))
+
+# name <- unique(data$Name)[1]
+for(name in unique(data$Name)){
+  cat('####', paste0(name, ', '),data$Adresse[data$Name==name],  '\n')
+  dat <- data[data$Name==name,c(3,6,4,5,7)]
+  dat <- rbind(dat, data.frame(Datum = as.Date("2018-12-31"), Bezeichnung = "Indexanpassung",
+                               Betrag = sum(dat$Betrag)*(vpi$vpi[vpi$year==2018]/100),
+                               Bindung = NA,
+                               Ablaufdatum = NA))
+  dat <- rbind(dat, data.frame(Datum = NA, Bezeichnung = "Summe",
+                               Betrag = sum(dat$Betrag),
+                               Bindung = NA,
+                               Ablaufdatum = NA))
+  colnames(dat) <- c("Datum","Bezeichnung","Betrag","Bindung (Jahre)","Ablaufdatum")
+  print(knitr::kable(dat, row.names = FALSE, align = "c", 
+                     format.args = list(decimal.mark = ",", big.mark = ".")) %>%
+          kableExtra::kable_styling(bootstrap_options =  c("condensed", "bordered", "striped"),
+                                    full_width = T, font_size = 12) %>%
+          kableExtra::column_spec(1:4, border_right = T, include_thead = T) %>%
+          kableExtra::row_spec(0, bold = TRUE, background = "#a3dba1") %>%
+          kableExtra::row_spec(nrow(dat), bold = TRUE, background = "#a3dba1"))
+}
+# convert html to pdf
+# https://html2pdf.com/de/
+```
+
+
