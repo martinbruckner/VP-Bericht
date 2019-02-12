@@ -1,5 +1,4 @@
 ---
-title: "Wohnprojekt Wördern"
 output:
   html_document: default
   pdf_document: default
@@ -9,10 +8,14 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Darlehensgeber und Fördergemeinschaftsmitglieder
+```{r pressure, echo=FALSE, out.width = '50%'}
+knitr::include_graphics("DieAuen_handDark.png")
+```
+
+## Vermögenspoolanleger*innen <br/> des Vereins Wohnprojekt Wördern
 
 <br/><br/>
-Stand: `r as.Date(Sys.time())`
+Stand: 2018-12-31
 <br/><br/><br/>
 
 ```{r table, echo=FALSE, warning=FALSE, message=FALSE, results='asis', include=TRUE}
@@ -42,43 +45,47 @@ for(year in vpi$year){
 data$Name <- paste(data$Vorname,data$Nachname)
 data <- data[,c("Name","Adresse","Datum","Betrag","Bindung")]
 rownames(data) <- 1:nrow(data)
-data$Bezeichnung <- "Darlehen"
+data$Bezeichnung <- "Vermögenspool"
 data$Ablaufdatum <- NA
 class(data$Ablaufdatum) <- "Date"
 data$Ablaufdatum[!is.na(as.numeric(data$Bindung)) & !is.na(data$Datum)] <- 
   data$Datum[!is.na(as.integer(data$Bindung)) & !is.na(data$Datum)] %m+% 
   months(as.numeric(data$Bindung[!is.na(as.numeric(data$Bindung)) & !is.na(data$Datum)])*12)
+data$Auszahlung <- NA
+class(data$Auszahlung) <- class(data$Betrag)
 
 summe <- 0
 
 # name <- unique(data$Name)[1]
 for(name in unique(data$Name)){
   cat('####', paste0(name, ', '),data$Adresse[data$Name==name][1],  '\n')
-  dat <- data[data$Name==name,c(3,6,4,5,7)]
+  dat <- data[data$Name==name,c(3,6,4,8,5,7)]
   dat <- rbind(dat, data.frame(Datum = as.Date("2018-12-31"), Bezeichnung = "Indexanpassung",
-                               Betrag = round(sum((dat$Betrag)*(vpi$vpi[vpi$year==2018]/100/12)*(12-month(dat$Datum))),0),
+                               Betrag = round(sum((dat$Betrag)*(vpi$vpi[vpi$year==2018]/100/12)*(12-month(dat$Datum))),2),
+                               Auszahlung = NA,
                                Bindung = NA,
                                Ablaufdatum = NA))
   summe <- summe + sum(dat$Betrag)
   dat <- rbind(dat, data.frame(Datum = NA, Bezeichnung = "Summe",
                                Betrag = sum(dat$Betrag),
+                               Auszahlung = NA,
                                Bindung = NA,
                                Ablaufdatum = NA))
-  colnames(dat) <- c("Datum","Bezeichnung","Betrag","Bindung (Jahre)","Ablaufdatum")
-  print(knitr::kable(dat, row.names = FALSE, align = "c", 
-                     format.args = list(decimal.mark = ",", big.mark = ".")) %>%
+  colnames(dat) <- c("Datum","Bezeichnung","Betrag","Auszahlung","Bindung (Jahre)","Ablaufdatum")
+  print(knitr::kable(dat, row.names = FALSE, align=c('c','c','r','r','c','c'), 
+                     format.args = list(decimal.mark = ",", big.mark = ".", nsmall = 2)) %>%
           kableExtra::kable_styling(bootstrap_options =  c("condensed", "bordered", "striped"),
                                     full_width = T, font_size = 12) %>%
-          kableExtra::column_spec(1:4, border_right = T, include_thead = T) %>%
-          kableExtra::row_spec(0, bold = TRUE, background = "#d1a138") %>%
+          kableExtra::column_spec(1:5, border_right = F, include_thead = T) %>%
+          kableExtra::row_spec(0, bold = TRUE, align = "c", background = "#d1a138") %>%
           kableExtra::row_spec(nrow(dat), bold = TRUE, background = "#d1a138"))
 }
 
 x <- knitr::kable(data.frame(C="Gesamtsumme", D=round(summe,2)), row.names = FALSE, align = "c", 
-                     format.args = list(decimal.mark = ",", big.mark = ".")) %>%
+                     format.args = list(nsmall = 2, decimal.mark = ",", big.mark = ".")) %>%
           kableExtra::kable_styling(bootstrap_options =  c("condensed", "bordered", "striped"),
                                     full_width = T, font_size = 12) %>%
-          kableExtra::column_spec(1, border_right = T, include_thead = T) %>%
+          kableExtra::column_spec(1, border_right = F, include_thead = T) %>%
           kableExtra::row_spec(1, bold = TRUE, background = "#d1a138")
 
 gsub("<thead>.*</thead>", "", x)
